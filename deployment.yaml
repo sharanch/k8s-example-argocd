@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resume
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resume
+  template:
+    metadata:
+      labels:
+        app: resume
+    spec:
+      containers:
+      - name: digiresume
+        image: digiresume:latest
+        imagePullPolicy: Never  # Important for local Podman images
+        ports:
+        - containerPort: 80            # Nginx in your Dockerfile uses port 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: resume-service
+spec:
+  selector:
+    app: resume
+  ports:
+    - protocol: TCP
+      port: 80         # The port the Service exposes
+      targetPort: 80   # Must match the containerPort above
