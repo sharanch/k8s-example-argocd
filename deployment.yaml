@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
       - name: digiresume
-        image: digiresume:latest
-        imagePullPolicy: Never  # Important for local Podman images
+        image: sharanch/digiresume:latest
+        imagePullPolicy: Always  # Important for local Podman images
         ports:
         - containerPort: 80            # Nginx in your Dockerfile uses port 80
 ---
