@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" type="image/x-icon" href="../../assets/favicon.ico">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Timer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.7.58/build/Tone.min.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', 'monospace'],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      .terminal-window {
+        background-color: #1a1a1a;
+        border: 1px solid #333;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        padding: 0;
+        overflow: hidden;
+      }
+      .terminal-header {
+        background-color: #333;
+        height: 25px;
+        display: flex;
+        align-items: center;
+        padding: 0 8px;
+        justify-content: flex-start;
+      }
+      .terminal-button {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+      }
+      .close-btn { background-color: #ff5f56; }
+      .minimize-btn { background-color: #ffbd2e; }
+      .maximize-btn { background-color: #27c93f; }
+      .terminal-content {
+        padding: 1.5rem;
+      }
+      body.light-mode {
+        background-color: #f0f4f8;
+        color: #1a202c;
+      }
+      body.light-mode .terminal-window {
+        background-color: #e0e0e0;
+        border-color: #ccc;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      body.light-mode .terminal-header {
+        background-color: #ccc;
+      }
+      body.light-mode .text-green-400 {
+        color: #1a202c;
+      }
+      body.light-mode .border-green-600 {
+        border-color: #e2e8f0;
+      }
+      body.light-mode .bg-green-600 {
+        background-color: #4c51bf;
+      }
+      body.light-mode .hover\:bg-green-700:hover {
+        background-color: #434190;
+      }
+      body.light-mode .shadow-xl {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      }
+      .light-mode #message-box {
+        background-color: #f0f4f8;
+        color: #1a202c;
+      }
+      .light-mode .hover\:bg-gray-700:hover {
+        background-color: #d1d5db;
+      }
+    </style>
+</head>
+<body class="bg-gray-950 text-green-400 font-mono flex items-center justify-center min-h-screen p-4 transition-colors duration-300">
+
+  <div class="terminal-window rounded-2xl w-full max-w-xl transition-colors duration-300">
+    
+    <div class="terminal-header flex-shrink-0 rounded-t-2xl">
+      <div class="terminal-button close-btn"></div>
+      <div class="terminal-button minimize-btn"></div>
+      <div class="terminal-button maximize-btn"></div>
+      <div class="flex-grow"></div>
+      <button id="theme-toggle" class="p-1 rounded-full hover:bg-gray-700 transition duration-300 focus:outline-none">
+          <!-- Sun Icon for Light Mode -->
+          <svg id="sun-icon" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display: none;">
+            <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zM12 4v2m0 12v2m8-8h2m-2-4h2M4 12H2m4 4h-2m14-8h-2"/>
+          </svg>
+          <!-- Moon Icon for Dark Mode -->
+          <svg id="moon-icon" class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+            <path d="M21 12.79A9 9 0 1111.21 3.21a9 9 0 009.79 9.58z"></path>
+          </svg>
+      </button>
+    </div>
+
+    <div class="terminal-content p-6 md:p-8">
+      <div class="flex flex-col items-center mb-6">
+        <h1 class="text-3xl font-bold text-green-400 mb-2">./pomodoro</h1>
+        <div id="session-type" class="text-xl text-green-400">Work Session</div>
+      </div>
+  
+      <!-- Timer Display -->
+      <div class="flex justify-center mb-6">
+        <div class="text-6xl md:text-8xl font-bold text-white transition-colors duration-300" id="timer">
+          25:00
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex flex-col sm:flex-row gap-4 items-center mb-6">
+        <button
+          id="start-btn"
+          class="flex-1 w-full bg-green-600 hover:bg-green-700 text-black font-bold py-3 px-6 rounded-lg transition-colors shadow-md border-2 border-green-500"
+        >
+          Start
+        </button>
+        <button
+          id="pause-btn"
+          class="flex-1 w-full bg-yellow-600 hover:bg-yellow-700 text-black font-bold py-3 px-6 rounded-lg transition-colors shadow-md border-2 border-yellow-500"
+        >
+          Pause
+        </button>
+        <button
+          id="reset-btn"
+          class="flex-1 w-full bg-red-600 hover:bg-red-700 text-black font-bold py-3 px-6 rounded-lg transition-colors shadow-md border-2 border-red-500"
+        >
+          Reset
+        </button>
+      </div>
+
+      <!-- Session Switch Buttons -->
+      <div class="flex justify-center gap-4">
+        <button
+          id="work-btn"
+          class="text-sm font-bold text-green-400 px-4 py-2 rounded-lg border-2 border-green-400 hover:bg-green-400 hover:text-black transition-colors"
+        >
+          Work (25 min)
+        </button>
+        <button
+          id="break-btn"
+          class="text-sm font-bold text-gray-400 px-4 py-2 rounded-lg border-2 border-gray-400 hover:bg-gray-400 hover:text-black transition-colors"
+        >
+          Break (5 min)
+        </button>
+      </div>
+    
+      <!-- Back button with 'cd ..' text at the bottom -->
+      <div class="flex justify-center mt-6">
+          <p>sharan@sre:~$ <a href="../../index.html" class="text-blue-400 hover:text-blue-300 transition duration-300">cd ..</a></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const timerDisplay = document.getElementById('timer');
+      const startBtn = document.getElementById('start-btn');
+      const pauseBtn = document.getElementById('pause-btn');
+      const resetBtn = document.getElementById('reset-btn');
+      const workBtn = document.getElementById('work-btn');
+      const breakBtn = document.getElementById('break-btn');
+      const sessionTypeDisplay = document.getElementById('session-type');
+      const themeToggle = document.getElementById('theme-toggle');
+      const body = document.body;
+      const sunIcon = document.getElementById('sun-icon');
+      const moonIcon = document.getElementById('moon-icon');
+
+      const workTime = 25 * 60; // 25 minutes in seconds
+      const breakTime = 5 * 60; // 5 minutes in seconds
+
+      let timeRemaining = workTime;
+      let isPaused = true;
+      let sessionType = 'work';
+      let animationFrameId;
+      let lastTime;
+
+      const synth = new Tone.Synth().toDestination();
+
+      function playSound() {
+        synth.triggerAttackRelease("C4", "8n");
+      }
+
+      function formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      }
+
+      function updateDisplay() {
+        timerDisplay.textContent = formatTime(timeRemaining);
+      }
+
+      function timerLoop(timestamp) {
+        if (!lastTime) lastTime = timestamp;
+        const elapsed = (timestamp - lastTime) / 1000;
+        
+        if (elapsed >= 1) {
+            timeRemaining = Math.max(0, timeRemaining - Math.floor(elapsed));
+            updateDisplay();
+            lastTime = timestamp;
+        }
+
+        if (timeRemaining <= 0) {
+            playSound();
+            toggleSession();
+            return;
+        }
+
+        animationFrameId = requestAnimationFrame(timerLoop);
+      }
+
+      function startTimer() {
+        if (!isPaused) return;
+        isPaused = false;
+        lastTime = null;
+        animationFrameId = requestAnimationFrame(timerLoop);
+      }
+
+      function pauseTimer() {
+        isPaused = true;
+        cancelAnimationFrame(animationFrameId);
+      }
+
+      function resetTimer() {
+        pauseTimer();
+        timeRemaining = sessionType === 'work' ? workTime : breakTime;
+        updateDisplay();
+      }
+
+      function toggleSession() {
+        pauseTimer();
+        if (sessionType === 'work') {
+          sessionType = 'break';
+          timeRemaining = breakTime;
+          sessionTypeDisplay.textContent = 'Break Session';
+          breakBtn.classList.add('border-green-400', 'text-green-400');
+          breakBtn.classList.remove('border-gray-400', 'text-gray-400');
+          workBtn.classList.add('border-gray-400', 'text-gray-400');
+          workBtn.classList.remove('border-green-400', 'text-green-400');
+        } else {
+          sessionType = 'work';
+          timeRemaining = workTime;
+          sessionTypeDisplay.textContent = 'Work Session';
+          workBtn.classList.add('border-green-400', 'text-green-400');
+          workBtn.classList.remove('border-gray-400', 'text-gray-400');
+          breakBtn.classList.add('border-gray-400', 'text-gray-400');
+          breakBtn.classList.remove('border-green-400', 'text-green-400');
+        }
+        updateDisplay();
+      }
+
+      startBtn.addEventListener('click', startTimer);
+      pauseBtn.addEventListener('click', pauseTimer);
+      resetBtn.addEventListener('click', resetTimer);
+      workBtn.addEventListener('click', () => {
+        sessionType = 'work';
+        resetTimer();
+        sessionTypeDisplay.textContent = 'Work Session';
+        workBtn.classList.add('border-green-400', 'text-green-400');
+        workBtn.classList.remove('border-gray-400', 'text-gray-400');
+        breakBtn.classList.add('border-gray-400', 'text-gray-400');
+        breakBtn.classList.remove('border-green-400', 'text-green-400');
+      });
+      breakBtn.addEventListener('click', () => {
+        sessionType = 'break';
+        resetTimer();
+        sessionTypeDisplay.textContent = 'Break Session';
+        breakBtn.classList.add('border-green-400', 'text-green-400');
+        breakBtn.classList.remove('border-gray-400', 'text-gray-400');
+        workBtn.classList.add('border-gray-400', 'text-gray-400');
+        workBtn.classList.remove('border-green-400', 'text-green-400');
+      });
+
+      // Theme toggle functionality
+      themeToggle.addEventListener('click', () => {
+        body.classList.toggle('light-mode');
+        
+        // Toggle icon visibility
+        if (body.classList.contains('light-mode')) {
+          sunIcon.style.display = 'block';
+          moonIcon.style.display = 'none';
+        } else {
+          sunIcon.style.display = 'none';
+          moonIcon.style.display = 'block';
+        }
+      });
+      
+      updateDisplay();
+    });
+  </script>
+</body>
+</html>

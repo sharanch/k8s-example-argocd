@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" type="image/x-icon" href="../../assets/favicon.ico">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Previewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', 'monospace'],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      .terminal-window {
+        background-color: #1a1a1a;
+        border: 1px solid #333;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        padding: 0;
+        overflow: hidden;
+      }
+      .terminal-header {
+        background-color: #333;
+        height: 25px;
+        display: flex;
+        align-items: center;
+        padding: 0 8px;
+        justify-content: flex-start;
+      }
+      .terminal-button {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+      }
+      .close-btn { background-color: #ff5f56; }
+      .minimize-btn { background-color: #ffbd2e; }
+      .maximize-btn { background-color: #27c93f; }
+      .terminal-content {
+        padding: 1.5rem;
+      }
+      body.light-mode {
+        background-color: #f0f4f8;
+        color: #1a202c;
+      }
+      body.light-mode .terminal-window {
+        background-color: #e0e0e0;
+        border-color: #ccc;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      body.light-mode .terminal-header {
+        background-color: #ccc;
+      }
+      body.light-mode .text-green-400 {
+        color: #1a202c;
+      }
+      body.light-mode .border-green-600 {
+        border-color: #e2e8f0;
+      }
+      body.light-mode .bg-green-600 {
+        background-color: #4c51bf;
+      }
+      body.light-mode .hover\:bg-green-700:hover {
+        background-color: #434190;
+      }
+      body.light-mode .shadow-xl {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      }
+      .light-mode .hover\:bg-gray-700:hover {
+        background-color: #d1d5db;
+      }
+      body.light-mode .text-white {
+        color: #1a202c;
+      }
+      body.light-mode .bg-gray-800,
+      body.light-mode textarea {
+        background-color: #f0f4f8;
+        color: #1a202c;
+      }
+      /* Custom styles for the markdown output */
+      #previewer {
+        color: #fff;
+      }
+      #previewer h1 { font-size: 2rem; font-weight: bold; }
+      #previewer h2 { font-size: 1.5rem; font-weight: bold; }
+      #previewer h3 { font-size: 1.25rem; font-weight: bold; }
+      #previewer p { margin-bottom: 1em; }
+      #previewer a { color: #4c51bf; text-decoration: underline; }
+      #previewer pre {
+        background-color: #2d3748;
+        color: #cbd5e0;
+        padding: 1em;
+        border-radius: 0.5rem;
+        overflow-x: auto;
+      }
+      body.light-mode #previewer {
+        color: #1a202c;
+      }
+      body.light-mode #previewer a {
+        color: #4c51bf;
+      }
+      body.light-mode #previewer pre {
+        background-color: #e2e8f0;
+        color: #1a202c;
+      }
+    </style>
+</head>
+<body class="bg-gray-950 text-green-400 font-mono flex items-center justify-center min-h-screen p-4 transition-colors duration-300">
+
+  <div class="terminal-window rounded-2xl w-full max-w-5xl transition-colors duration-300">
+    
+    <div class="terminal-header flex-shrink-0 rounded-t-2xl">
+      <div class="terminal-button close-btn"></div>
+      <div class="terminal-button minimize-btn"></div>
+      <div class="terminal-button maximize-btn"></div>
+      <div class="flex-grow"></div>
+      <button id="theme-toggle" class="p-1 rounded-full hover:bg-gray-700 transition duration-300 focus:outline-none">
+          <!-- Sun Icon for Light Mode -->
+          <svg id="sun-icon" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+            <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zM12 4v2m0 12v2m8-8h2m-2-4h2M4 12H2m4 4h-2m14-8h-2"/>
+          </svg>
+          <!-- Moon Icon for Dark Mode -->
+          <svg id="moon-icon" class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display: none;">
+            <path d="M21 12.79A9 9 0 1111.21 3.21a9 9 0 009.79 9.58z"></path>
+          </svg>
+      </button>
+    </div>
+
+    <div class="terminal-content p-6 md:p-8">
+      <div class="flex flex-col items-center mb-6">
+        <h1 class="text-3xl font-bold text-green-400 mb-2">./markdown-preview</h1>
+      </div>
+  
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Markdown Input -->
+        <div>
+          <h2 class="text-xl font-bold text-green-400 mb-2">Input (.md)</h2>
+          <textarea
+            id="markdown-input"
+            class="w-full h-96 bg-gray-800 p-4 rounded-lg border-2 border-green-600 text-white text-lg resize-none focus:outline-none"
+            placeholder="# Hello, Markdown!
+
+Write your Markdown here and see the live preview on the right.
+
+**Features:**
+- Headings
+- *Italics*
+- **Bold**
+- `inline code`
+- [Links](https://example.com)
+
+\`\`\`javascript
+// Code blocks
+function sayHello() {
+  console.log('Hello, world!');
+}
+\`\`\`"
+          ></textarea>
+        </div>
+
+        <!-- Live Preview -->
+        <div>
+          <h2 class="text-xl font-bold text-green-400 mb-2">Preview (.html)</h2>
+          <div
+            id="previewer"
+            class="w-full h-96 bg-gray-800 p-4 rounded-lg border-2 border-green-600 overflow-y-auto"
+          ></div>
+        </div>
+      </div>
+      
+      <!-- Back button with 'cd ..' text at the bottom -->
+      <div class="flex justify-center mt-6">
+          <p>sharan@sre:~$ <a href="../../index.html" class="text-blue-400 hover:text-blue-300 transition duration-300">cd ..</a></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const markdownInput = document.getElementById('markdown-input');
+      const previewer = document.getElementById('previewer');
+      const themeToggle = document.getElementById('theme-toggle');
+      const body = document.body;
+      const sunIcon = document.getElementById('sun-icon');
+      const moonIcon = document.getElementById('moon-icon');
+
+      // Function to render markdown
+      const renderMarkdown = () => {
+        const markdown = markdownInput.value;
+        const html = marked.parse(markdown);
+        previewer.innerHTML = html;
+      };
+
+      // Initial render
+      renderMarkdown();
+
+      // Event listener for real-time updates
+      markdownInput.addEventListener('input', renderMarkdown);
+
+      // Theme toggle functionality
+      themeToggle.addEventListener('click', () => {
+        body.classList.toggle('light-mode');
+        
+        // Toggle icon visibility
+        if (body.classList.contains('light-mode')) {
+          sunIcon.style.display = 'none';
+          moonIcon.style.display = 'block';
+        } else {
+          sunIcon.style.display = 'block';
+          moonIcon.style.display = 'none';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
